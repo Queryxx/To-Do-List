@@ -103,16 +103,27 @@ res.status(200).json({success:true, message:"ITEMS Deleted successfully" });
 });
 
 app.post('/register', async(req, res) => {
-const {name, username, password, confirm} = req.body;
-if(password == confirm){
-     const salt = 10;
-     const hash = await hashpass(password, salt);
-     await pool.query('INSERT INTO user_accounts (name, username, password) VALUES ($1, $2, $3)', [name, username, hash]);
-     res.status(200).json({success:true, message:"Registered successfully" });
-}else{
-     res.status(401).json({success:false, message:"Confirm password and password does not match" });
-}}
-);
+    try {
+        const {name, username, password, confirm} = req.body;
+        if (password !== confirm) {
+            return res.status(400).json({success: false, message: "Confirm password and password do not match"});
+        }
+        
+        // Check if username already exists
+        const existingUser = await pool.query('SELECT id FROM user_accounts WHERE username = $1', [username]);
+        if (existingUser.rows.length > 0) {
+            return res.status(409).json({success: false, message: "Username already exists"});
+        }
+        
+        const salt = 10;
+        const hash = await hashpass(password, salt);
+        await pool.query('INSERT INTO user_accounts (name, username, password) VALUES ($1, $2, $3)', [name, username, hash]);
+        res.status(200).json({success: true, message: "Registered successfully"});
+    } catch (err) {
+        console.error('Registration error:', err);
+        res.status(500).json({success: false, message: 'Server error'});
+    }
+});
 
 
 
